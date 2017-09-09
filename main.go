@@ -35,6 +35,7 @@ func main() {
     mux := goji.NewMux()
     mux.HandleFunc(pat.Get("/games"), allGames(session))
     mux.HandleFunc(pat.Post("/games"), addGame(session))
+    mux.HandleFunc(pat.Get("/games/:game_id"), gameById(session))
     http.ListenAndServe("localhost:8080", mux)
 }
 
@@ -115,4 +116,35 @@ func addGame(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(http.StatusCreated)
     }
+}
+
+func gameById(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session := s.Copy()
+		defer session.Close()
+
+		GameId := pat.Param(r, "game_id")
+
+		c := session.DB("store").C("games")
+
+		var game Game
+		err := c.Find(bson.M{"gameid": GameId}).One(&game)
+		if err != nil {
+			ErrorWithJSON(w, "Database error", http.StatusInternalServerError)
+			log.Println("Failed find game: ", err)
+			return
+		}
+
+		if game.GameId == "" {
+			ErrorWithJSON(w, "Game not found", http.StatusNotFound)
+			return
+		}
+
+		respBody, err := json.MarshalIndent(game, "", "  ")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		ResponseWithJSON(w, respBody, http.StatusOK)
+	}
 }
