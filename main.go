@@ -36,6 +36,7 @@ func main() {
     mux.HandleFunc(pat.Get("/games"), allGames(session))
     mux.HandleFunc(pat.Post("/games"), addGame(session))
     mux.HandleFunc(pat.Get("/games/:game_id"), gameById(session))
+    mux.HandleFunc(pat.Post("/games/:game_id"), deleteGame(session))
     http.ListenAndServe("localhost:8080", mux)
 }
 
@@ -146,5 +147,31 @@ func gameById(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ResponseWithJSON(w, respBody, http.StatusOK)
+	}
+}
+
+func deleteGame(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session := s.Copy()
+		defer session.Close()
+
+		GameId := pat.Param(r, "game_id")
+
+		c := session.DB("store").C("games")
+
+		err := c.Remove(bson.M{"gameid": GameId})
+		if err != nil {
+			switch err {
+			default:
+				ErrorWithJSON(w, "Database error", http.StatusInternalServerError)
+				log.Println("Failed delete game: ", err)
+				return
+			case mgo.ErrNotFound:
+				ErrorWithJSON(w, "Game not found", http.StatusNotFound)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
