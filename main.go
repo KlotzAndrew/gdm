@@ -11,7 +11,7 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
-import "gdms/lib"
+import "gds/lib"
 
 func errorWithJSON(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
